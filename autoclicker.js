@@ -343,7 +343,7 @@ async function runAutoclickerSteps(page, userData) {
     console.log(`   URL: ${URL}`);
     await page.goto(URL, {
       waitUntil: 'networkidle2',
-      timeout: 60000,
+      timeout: 120000, // Увеличено до 120 секунд для медленных соединений
     });
     console.log('✅ Страница загружена');
 
