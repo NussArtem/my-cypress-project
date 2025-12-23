@@ -2221,16 +2221,13 @@ async function autoclicker() {
   const userData = await getUserDataFromForm(browser);
 
   let attempt = 0;
+  let errorAttempt = 0; // Счетчик попыток при ошибках/блокировках
   let success = false;
 
-  while (attempt < MAX_RETRIES && !success) {
+  while (!success) {
     attempt++;
     if (attempt > 1) {
-      console.log(`\n🔄 Попытка ${attempt}/${MAX_RETRIES}`);
-      console.log(
-        `⏳ Ожидание ${RETRY_DELAY / 1000} секунд перед повторной попыткой...`,
-      );
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      console.log(`\n🔄 Попытка ${attempt} (поиск записей...)`);
     }
 
     try {
@@ -2310,7 +2307,7 @@ async function autoclicker() {
 
       if (result && result.hasCitas === false) {
         console.log('\n🔄 Записей нет, повторяем процесс...');
-        const retryInterval = 30000;
+        const retryInterval = 10000; // 10 секунд вместо 30
         console.log(
           `⏳ Ожидание ${
             retryInterval / 1000
@@ -2318,6 +2315,7 @@ async function autoclicker() {
         );
         await new Promise(resolve => setTimeout(resolve, retryInterval));
         console.log('📍 Возвращаемся к шагу 1: Переход на сайт');
+        errorAttempt = 0; // Сбрасываем счетчик ошибок при успешном выполнении
         continue;
       } else if (result && result.hasCitas === true) {
         success = true;
@@ -2366,33 +2364,37 @@ async function autoclicker() {
         console.log('\n✅ Автокликер выполнен успешно!');
       }
     } catch (error) {
+      errorAttempt++;
       if (error.message === 'BLOCKED') {
-        console.log(`\n❌ Попытка ${attempt} заблокирована сайтом`);
-        if (attempt < MAX_RETRIES) {
+        console.log(`\n❌ Попытка заблокирована сайтом (ошибок: ${errorAttempt}/${MAX_RETRIES})`);
+        if (errorAttempt < MAX_RETRIES) {
           console.log(
             `🔄 Автоматический перезапуск с начала через ${
               RETRY_DELAY / 1000
             } секунд...`,
           );
           console.log('   📍 Начнем с шага 1: Переход на сайт');
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
           continue;
         } else {
           console.log(
-            '\n❌ Достигнуто максимальное количество попыток. Остановка.',
+            '\n❌ Достигнуто максимальное количество попыток при блокировке. Остановка.',
           );
           break;
         }
       } else {
-        console.error('\n❌ Ошибка:', error.message);
-        if (attempt < MAX_RETRIES) {
+        console.error(`\n❌ Ошибка (ошибок: ${errorAttempt}/${MAX_RETRIES}):`, error.message);
+        if (errorAttempt < MAX_RETRIES) {
           console.log(
             `🔄 Повторная попытка с начала через ${
               RETRY_DELAY / 1000
             } секунд...`,
           );
           console.log('   📍 Начнем с шага 1: Переход на сайт');
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          continue;
         } else {
-          console.log('\n❌ Достигнуто максимальное количество попыток.');
+          console.log('\n❌ Достигнуто максимальное количество попыток при ошибках.');
           break;
         }
       }
