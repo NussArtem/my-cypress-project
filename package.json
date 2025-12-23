@@ -1,0 +1,23 @@
+{
+  "name": "my-cypress-project",
+  "version": "1.0.0",
+  "description": "Автокликер для записи на прием",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "autoclicker": "node autoclicker.js",
+    "autoclicker2": "node autoclicker2.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^4.18.2",
+    "puppeteer": "^24.33.0",
+    "puppeteer-core": "^24.33.0",
+    "uuid": "^9.0.1",
+    "dotenv": "^16.3.1"
+  }
+}
