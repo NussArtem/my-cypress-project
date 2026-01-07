@@ -46,6 +46,7 @@ async function runAutoclicker(
       browser = await puppeteer.launch({
         headless: isHeadless,
         args: [
+          '--remote-debugging-port=9222',
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
