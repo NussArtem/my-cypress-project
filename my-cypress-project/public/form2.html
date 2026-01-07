@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Данные для автокликера 2</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      color: #333;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      margin-top: 10px;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
+    .btn:active {
+      transform: translateY(0);
+    }
+    .status {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 10px;
+      text-align: center;
+      font-weight: 600;
+      display: none;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🤖 Автокликер 2</h1>
+    <p class="subtitle">Введите данные для запуска автокликера</p>
+    
+    <form id="dataForm">
+      <div class="form-group">
+        <label for="tipoDocumento">Тип документа</label>
+        <select id="tipoDocumento" required>
+          <option value="NIE" selected>NIE</option>
+          <option value="DNI">DNI</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="numeroNie">Номер NIE</label>
+        <input type="text" id="numeroNie" placeholder="Z1868415S" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="nombreCompleto">Имя и фамилия</label>
+        <input type="text" id="nombreCompleto" placeholder="ANTONII REVSIN" required>
+      </div>
+      
+      <button type="submit" class="btn">🚀 Запустить автокликер</button>
+    </form>
+    
+    <div id="status" class="status"></div>
+    <button id="stopButton" class="btn btn-stop" style="display: none; margin-top: 20px; background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);">
+      🛑 Остановить автокликер
+    </button>
+  </div>
+
+  <script>
+    const form = document.getElementById('dataForm');
+    const status = document.getElementById('status');
+    const stopButton = document.getElementById('stopButton');
+    let currentJobId = null;
+    let statusInterval = null;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const data = {
+        tipoDocumento: document.getElementById('tipoDocumento').value,
+        numeroNie: document.getElementById('numeroNie').value.trim(),
+        nombreCompleto: document.getElementById('nombreCompleto').value.trim()
+      };
+
+      if (!data.numeroNie || !data.nombreCompleto) {
+        showStatus('❌ Заполните все обязательные поля!', 'error');
+        return;
+      }
+
+      showStatus('⏳ Отправка данных на сервер...', 'info');
+      
+      try {
+        const response = await fetch('/api/start-autoclicker2', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          currentJobId = result.jobId;
+          showStatus('✅ Автокликер 2 запущен! ID задачи: ' + currentJobId + '\n⏳ Отслеживание статуса...', 'success');
+          document.body.style.background = '#d4edda';
+          stopButton.style.display = 'block';
+          stopButton.disabled = false;
+          form.querySelector('button[type="submit"]').disabled = true;
+          
+          // Отслеживание статуса
+          statusInterval = setInterval(async () => {
+            try {
+              const statusResponse = await fetch(`/api/status/${currentJobId}`);
+              const statusData = await statusResponse.json();
+              
+              if (statusData.success && statusData.job) {
+                const job = statusData.job;
+                if (job.status === 'completed') {
+                  clearInterval(statusInterval);
+                  stopButton.style.display = 'block';
+                  stopButton.disabled = false;
+                  form.querySelector('button[type="submit"]').disabled = false;
+                  currentJobId = null;
+                  showStatus('🎉 Автокликер 2 завершен успешно! Проверьте Telegram уведомления.', 'success');
+                } else if (job.status === 'error') {
+                  clearInterval(statusInterval);
+                  stopButton.style.display = 'block';
+                  stopButton.disabled = false;
+                  form.querySelector('button[type="submit"]').disabled = false;
+                  currentJobId = null;
+                  showStatus('❌ Ошибка: ' + (job.error || 'Неизвестная ошибка'), 'error');
+                } else if (job.status === 'stopped') {
+                  clearInterval(statusInterval);
+                  stopButton.style.display = 'block';
+                  stopButton.disabled = false;
+                  form.querySelector('button[type="submit"]').disabled = false;
+                  currentJobId = null;
+                  showStatus('🛑 Автокликер 2 остановлен пользователем', 'info');
+                } else {
+                  stopButton.style.display = 'block';
+                  stopButton.disabled = false;
+                  showStatus('⏳ Автокликер 2 работает... Статус: ' + job.status, 'info');
+                }
+              } else {
+                stopButton.style.display = 'block';
+                stopButton.disabled = false;
+                showStatus('⏳ Статус недоступен, кнопка остановки доступна.', 'info');
+              }
+            } catch (error) {
+              console.error('Ошибка проверки статуса:', error);
+              stopButton.style.display = 'block';
+              stopButton.disabled = false;
+            }
+          }, 3000); // Проверяем каждые 3 секунды
+        } else {
+          showStatus('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
+        }
+      } catch (error) {
+        showStatus('❌ Ошибка отправки: ' + error.message, 'error');
+      }
+    });
+
+    function showStatus(message, type) {
+      status.textContent = message;
+      status.className = `status ${type}`;
+      status.style.display = 'block';
+    }
+
+    // Обработчик кнопки остановки
+    stopButton.addEventListener('click', async () => {
+      if (!currentJobId) {
+        showStatus('ℹ️ Нет активной задачи для остановки.', 'info');
+        stopButton.style.display = 'block';
+        stopButton.disabled = false;
+        return;
+      }
+      
+      showStatus('⏳ Остановка автокликера...', 'info');
+      stopButton.disabled = true;
+      
+      try {
+        const response = await fetch(`/api/stop/${currentJobId}`, {
+          method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showStatus('🛑 Автокликер остановлен', 'info');
+          if (statusInterval) clearInterval(statusInterval);
+          stopButton.style.display = 'block';
+          stopButton.disabled = false;
+          form.querySelector('button[type="submit"]').disabled = false;
+          currentJobId = null;
+        } else {
+          showStatus('❌ Ошибка остановки: ' + (result.error || 'Неизвестная ошибка') + '\\n🔄 Кнопка остается доступной для повторной попытки.', 'error');
+          stopButton.disabled = false;
+          stopButton.style.display = 'block';
+        }
+      } catch (error) {
+        showStatus('❌ Ошибка остановки: ' + error.message + '\\n🔄 Кнопка остается доступной для повторной попытки.', 'error');
+        stopButton.disabled = false;
+        stopButton.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
+
