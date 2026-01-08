@@ -189,7 +189,7 @@
           // Отслеживание статуса
           statusInterval = setInterval(async () => {
             try {
-              const statusResponse = await fetch(`/api/status/${jobId}`);
+              const statusResponse = await fetch(`/api/status/${currentJobId}`);
               const statusData = await statusResponse.json();
               
               if (statusData.success && statusData.job) {

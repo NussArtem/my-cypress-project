@@ -1,25 +1,38 @@
 # Автокликер для записи на прием
 
-Веб-приложение для автоматизации записи на прием в испанских государственных учреждениях.
+Веб-приложение для автоматизации записи на прием в испанских государственных
+учреждениях.
 
 ## Установка
 
 1. Установите зависимости:
+
 ```bash
 npm install
 ```
 
 2. Создайте файл `.env` на основе `.env.example`:
+
 ```bash
 cp .env.example .env
 ```
 
 3. Заполните переменные окружения в `.env`:
+
 - `TELEGRAM_BOT_TOKEN` - токен Telegram бота
 - `TELEGRAM_CHAT_IDS` - ID чатов через запятую
 - `PORT` - порт сервера (по умолчанию 3000)
 
 ## Запуск локально
+
+1. Запустите Chrome for Testing с remote debugging (обязательно перед запуском
+   автокликера):
+
+```bash
+CHROME_PATH=$(find ~/.cache/puppeteer -name "Google Chrome for Testing" -type f 2>/dev/null | head -1) && nohup "$CHROME_PATH" --remote-debugging-port=9222 --user-data-dir="$HOME/.chrome-autoclicker-profile" --no-sandbox --disable-setuid-sandbox > /dev/null 2>&1 &
+```
+
+2. Запустите сервер:
 
 ```bash
 npm start
@@ -47,9 +60,11 @@ npm start
 ## API
 
 ### POST /api/start-autoclicker1
+
 Запуск автокликера 1 (со страной гражданства)
 
 Тело запроса:
+
 ```json
 {
   "tipoDocumento": "NIE",
@@ -60,9 +75,11 @@ npm start
 ```
 
 ### POST /api/start-autoclicker2
+
 Запуск автокликера 2 (без страны гражданства)
 
 Тело запроса:
+
 ```json
 {
   "tipoDocumento": "NIE",
@@ -72,6 +89,7 @@ npm start
 ```
 
 ### GET /api/status/:jobId
+
 Получение статуса выполнения задачи
 
 ## Структура проекта
@@ -81,4 +99,3 @@ npm start
 - `autoclicker2.js` - Автокликер 2
 - `lib/` - Вспомогательные модули
 - `public/` - Статические файлы (HTML формы)
-

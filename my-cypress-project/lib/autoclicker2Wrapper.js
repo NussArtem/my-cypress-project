@@ -14,6 +14,7 @@ async function runAutoclicker(
 
   let browser = null;
   let shouldCloseBrowser = false;
+  let keepBrowserOpen = false;
 
   try {
     // Пытаемся подключиться к существующему Chrome с remote debugging
@@ -46,12 +47,12 @@ async function runAutoclicker(
       browser = await puppeteer.launch({
         headless: isHeadless,
         args: [
-        '--remote-debugging-port=9222',
+          '--remote-debugging-port=9222',
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-accelerated-2d-canvas',
-        '--no-first-run',
+          '--no-first-run',
           '--no-zygote',
           '--disable-gpu',
         ],
@@ -108,7 +109,6 @@ async function runAutoclicker(
     let attempt = 0;
     let success = false;
     let finalResult = null;
-    let keepBrowserOpen = false;
 
     while (attempt < MAX_RETRIES && !success) {
       // Проверяем, не запрошена ли остановка
@@ -214,13 +214,13 @@ async function runAutoclicker(
         '✅ Найдена запись, браузер оставлен открытым для ввода данных',
       );
       return;
-        }
+    }
 
     if (browser && shouldCloseBrowser) {
-          await browser.close();
-          console.log('✅ Браузер закрыт');
+      await browser.close();
+      console.log('✅ Браузер закрыт');
     } else if (browser) {
-          console.log('✅ Отключено от Chrome (Chrome продолжает работать)');
+      console.log('✅ Отключено от Chrome (Chrome продолжает работать)');
     }
   }
 }

@@ -14,6 +14,7 @@ async function runAutoclicker(
 
   let browser = null;
   let shouldCloseBrowser = false;
+  let keepBrowserOpen = false;
 
   try {
     // Пытаемся подключиться к существующему Chrome с remote debugging
@@ -110,7 +111,6 @@ async function runAutoclicker(
     let attempt = 0;
     let success = false;
     let finalResult = null;
-    let keepBrowserOpen = false;
 
     while (attempt < MAX_RETRIES && !success) {
       // Проверяем, не запрошена ли остановка
