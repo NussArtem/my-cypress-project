@@ -2120,9 +2120,6 @@ async function runAutoclickerSteps(page, userData) {
 ✅ Текста "no hay citas disponibles" НЕ найдено!
 ✅ Страница: ${isPaso1 ? 'Paso 1 de 5' : 'другая страница'}
 
-📢 Проверьте страницу в браузере:
-${pageUrl}
-
 👤 Данные:
 • NIE: ${numeroNie}
 • Имя: ${nombreCompleto}

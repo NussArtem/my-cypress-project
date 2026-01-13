@@ -40,18 +40,31 @@ async function startAutoclicker1(userData) {
     activeBrowsers.set(jobId, browser);
   }, checkStop)
     .then(result => {
-      activeBrowsers.delete(jobId);
-      console.log(`✅ Автокликер 1 завершен успешно, jobId: ${jobId}`, result);
       const job = jobs.get(jobId);
+      console.log(`🔍 Результат автокликера 1, jobId: ${jobId}:`, JSON.stringify(result));
       if (job) {
-        if (job.stopRequested) {
-          job.status = 'stopped';
+        // Если найдена запись, ставим на паузу и НЕ удаляем браузер
+        if (result && (result.hasCitas === true || result.success === true)) {
+          job.status = 'paused';
+          console.log(`⏸️ Автокликер 1 поставлен на паузу (найдена запись), jobId: ${jobId}`);
+          console.log(`⚠️ Браузер остается подключенным для сохранения сессии!`);
+          // НЕ удаляем браузер из activeBrowsers, чтобы сессия сохранилась
         } else {
-          job.status = 'completed';
+          // Если записей нет или другая ситуация, завершаем нормально
+          activeBrowsers.delete(jobId);
+          if (job.stopRequested) {
+            job.status = 'stopped';
+          } else {
+            job.status = 'completed';
+          }
+          console.log(`✅ Автокликер 1 завершен успешно, jobId: ${jobId}`, result);
         }
         job.endTime = new Date();
         job.result = result;
         console.log(`📊 Статус задачи ${jobId} обновлен: ${job.status}`);
+      } else {
+        // Если задачи нет, все равно удаляем браузер
+        activeBrowsers.delete(jobId);
       }
     })
     .catch(error => {
@@ -102,18 +115,31 @@ async function startAutoclicker2(userData) {
     activeBrowsers.set(jobId, browser);
   }, checkStop)
     .then(result => {
-      activeBrowsers.delete(jobId);
-      console.log(`✅ Автокликер 2 завершен успешно, jobId: ${jobId}`, result);
       const job = jobs.get(jobId);
+      console.log(`🔍 Результат автокликера 2, jobId: ${jobId}:`, JSON.stringify(result));
       if (job) {
-        if (job.stopRequested) {
-          job.status = 'stopped';
+        // Если найдена запись, ставим на паузу и НЕ удаляем браузер
+        if (result && (result.hasCitas === true || result.success === true)) {
+          job.status = 'paused';
+          console.log(`⏸️ Автокликер 2 поставлен на паузу (найдена запись), jobId: ${jobId}`);
+          console.log(`⚠️ Браузер остается подключенным для сохранения сессии!`);
+          // НЕ удаляем браузер из activeBrowsers, чтобы сессия сохранилась
         } else {
-          job.status = 'completed';
+          // Если записей нет или другая ситуация, завершаем нормально
+          activeBrowsers.delete(jobId);
+          if (job.stopRequested) {
+            job.status = 'stopped';
+          } else {
+            job.status = 'completed';
+          }
+          console.log(`✅ Автокликер 2 завершен успешно, jobId: ${jobId}`, result);
         }
         job.endTime = new Date();
         job.result = result;
         console.log(`📊 Статус задачи ${jobId} обновлен: ${job.status}`);
+      } else {
+        // Если задачи нет, все равно удаляем браузер
+        activeBrowsers.delete(jobId);
       }
     })
     .catch(error => {
@@ -148,8 +174,8 @@ async function stopAutoclicker(jobId) {
     return { success: false, error: 'Задача не найдена' };
   }
 
-  if (job.status !== 'running') {
-    return { success: false, error: 'Задача не выполняется' };
+  if (job.status !== 'running' && job.status !== 'paused') {
+    return { success: false, error: 'Задача не выполняется и не на паузе' };
   }
 
   console.log(`🛑 Остановка автокликера, jobId: ${jobId}`);
@@ -159,10 +185,23 @@ async function stopAutoclicker(jobId) {
   const browser = activeBrowsers.get(jobId);
   if (browser) {
     try {
-      await browser.close();
-      console.log(`✅ Браузер закрыт для задачи ${jobId}`);
+      // Если задача на паузе, просто отключаемся, не закрывая браузер
+      if (job.status === 'paused') {
+        try {
+          if (browser.disconnect) {
+            browser.disconnect();
+            console.log(`✅ Отключено от браузера для задачи ${jobId} (браузер остается открытым)`);
+          }
+        } catch (e) {
+          console.log(`⚠️ Не удалось отключиться от браузера:`, e.message);
+        }
+      } else {
+        // Если задача выполнялась, закрываем браузер
+        await browser.close();
+        console.log(`✅ Браузер закрыт для задачи ${jobId}`);
+      }
     } catch (error) {
-      console.error(`❌ Ошибка при закрытии браузера:`, error);
+      console.error(`❌ Ошибка при закрытии/отключении браузера:`, error);
     }
     activeBrowsers.delete(jobId);
   }
