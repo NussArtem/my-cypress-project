@@ -334,7 +334,7 @@ async function getUserDataFromForm(browser) {
   return userData;
 }
 
-async function runAutoclickerSteps(page, userData) {
+async function runAutoclickerSteps(page, userData, checkStop = null) {
   const { numeroNie, nombreCompleto, tipoDocumento } = userData;
 
   try {
@@ -2041,10 +2041,105 @@ async function runAutoclickerSteps(page, userData) {
     console.log(`   📄 Заголовок страницы: ${pageTitle}`);
     console.log(`   📍 URL: ${pageUrl}`);
 
+    // КРИТИЧЕСКИ ВАЖНО: Проверяем истекшую сессию ПЕРЕД проверкой наличия записей!
+    const sessionExpiredTexts = [
+      'Su sesión ha caducado',
+      'sesión ha caducado',
+      'caducado por permanecer demasiado tiempo inactiva',
+      'sesión ha expirado',
+      'sesión expirada',
+      'Debe iniciar de nuevo',
+      'iniciar de nuevo la solicitud',
+    ];
+    const hasExpiredSession = sessionExpiredTexts.some(text =>
+      pageText.includes(text) || pageText.toLowerCase().includes(text.toLowerCase()),
+    );
+
+    if (hasExpiredSession) {
+      console.log('\n' + '='.repeat(60));
+      console.log('⚠️⚠️⚠️ СЕССИЯ ИСТЕКЛА! ⚠️⚠️⚠️');
+      console.log('='.repeat(60));
+      console.log('❌ Обнаружен текст об истекшей сессии!');
+      console.log('❌ НЕ отправляем уведомление - это ложное срабатывание!');
+      console.log('🔄 Автокликер продолжит попытки...');
+      console.log('='.repeat(60));
+      return { success: false, hasCitas: false };
+    }
+
     const isPaso1 =
       pageText.includes('Paso 1 de 5') || pageTitle.includes('Paso 1');
     console.log(
       `   🔍 Проверка: Страница "Paso 1 de 5" - ${isPaso1 ? 'ДА' : 'НЕТ'}`,
+    );
+
+    // КРИТИЧЕСКИ ВАЖНО: Проверяем наличие КОНКРЕТНЫХ элементов страницы с доступными записями!
+    const hasCitasPageElements = await page
+      .evaluate(() => {
+        // 1. Ищем текст "Selecciona una de las siguientes citas disponibles"
+        const citasDisponiblesText = document.body.innerText.includes('Selecciona una de las siguientes citas disponibles') ||
+                                     document.body.innerText.includes('citas disponibles') ||
+                                     document.body.innerText.includes('Selecciona una de las siguientes');
+        
+        // 2. Ищем блоки с записями (CITA 1, CITA 2 и т.д.)
+        const citaBlocks = Array.from(document.querySelectorAll('*')).filter(el => {
+          const text = el.textContent || '';
+          return /CITA\s*\d+/i.test(text) && (text.includes('Día:') || text.includes('Hora:') || text.includes('/202'));
+        });
+        
+        // 3. Ищем радио-кнопки для выбора записи
+        const radioButtons = document.querySelectorAll('input[type="radio"]');
+        
+        // 4. Ищем элементы с датой в формате DD/MM/YYYY
+        const datePattern = /\d{2}\/\d{2}\/\d{4}/;
+        const hasDatePattern = datePattern.test(document.body.innerText);
+        
+        // 5. Ищем элементы с временем в формате HH:MM
+        const timePattern = /\d{2}:\d{2}/;
+        const hasTimePattern = timePattern.test(document.body.innerText);
+        
+        // 6. Ищем календарь, селекторы даты/времени (на всякий случай)
+        const dateInputs = document.querySelectorAll(
+          'input[type="date"], input[type="datetime-local"], input[name*="fecha" i], input[id*="fecha" i]',
+        );
+        const timeInputs = document.querySelectorAll(
+          'input[type="time"], input[name*="hora" i], input[id*="hora" i]',
+        );
+        const calendarElements = document.querySelectorAll(
+          '[class*="calendar" i], [id*="calendar" i], [class*="datepicker" i]',
+        );
+
+        return {
+          hasCitasDisponiblesText: citasDisponiblesText,
+          hasCitaBlocks: citaBlocks.length > 0,
+          citaBlocksCount: citaBlocks.length,
+          hasRadioButtons: radioButtons.length > 0,
+          radioButtonsCount: radioButtons.length,
+          hasDatePattern: hasDatePattern,
+          hasTimePattern: hasTimePattern,
+          hasDateInputs: dateInputs.length > 0,
+          hasTimeInputs: timeInputs.length > 0,
+          hasCalendar: calendarElements.length > 0,
+          // Записи ЕСТЬ если есть хотя бы один из этих признаков:
+          hasCitas: citasDisponiblesText || citaBlocks.length > 0 || (radioButtons.length > 0 && hasDatePattern && hasTimePattern),
+        };
+      })
+      .catch(() => ({
+        hasCitasDisponiblesText: false,
+        hasCitaBlocks: false,
+        citaBlocksCount: 0,
+        hasRadioButtons: false,
+        radioButtonsCount: 0,
+        hasDatePattern: false,
+        hasTimePattern: false,
+        hasDateInputs: false,
+        hasTimeInputs: false,
+        hasCalendar: false,
+        hasCitas: false,
+      }));
+
+    console.log(
+      `   🔍 Проверка элементов страницы с доступными записями:`,
+      hasCitasPageElements,
     );
 
     const noCitasText = 'En este momento no hay citas disponibles';
@@ -2059,12 +2154,28 @@ async function runAutoclickerSteps(page, userData) {
       }`,
     );
 
-    if (hasNoCitas) {
+    // КРИТИЧЕСКИ ВАЖНО: Записи ЕСТЬ только если:
+    // 1. НЕТ текста "no hay citas disponibles" И
+    // 2. ЕСТЬ элементы страницы с доступными записями (текст "citas disponibles", блоки CITA, радио-кнопки) И
+    // 3. Сессия НЕ истекла
+    const hasCitasAvailable =
+      !hasNoCitas &&
+      hasCitasPageElements.hasCitas &&
+      !hasExpiredSession;
+
+    if (hasNoCitas || !hasCitasAvailable) {
       console.log('\n' + '='.repeat(60));
       console.log('❌ ЗАПИСЕЙ НЕТ!');
-      console.log(
-        '   Текст найден: "En este momento no hay citas disponibles..."',
-      );
+      if (hasNoCitas) {
+        console.log(
+          '   Текст найден: "En este momento no hay citas disponibles..."',
+        );
+      } else if (!hasCitasPageElements.hasCitas) {
+        console.log('   ❌ Элементы страницы с доступными записями НЕ найдены!');
+        console.log(`   ❌ Текст "citas disponibles": ${hasCitasPageElements.hasCitasDisponiblesText ? 'ДА' : 'НЕТ'}`);
+        console.log(`   ❌ Блоки с записями (CITA): ${hasCitasPageElements.citaBlocksCount}`);
+        console.log(`   ❌ Радио-кнопки: ${hasCitasPageElements.radioButtonsCount}`);
+      }
       console.log('='.repeat(60));
       return { success: false, hasCitas: false };
     } else {
@@ -2108,6 +2219,12 @@ async function runAutoclickerSteps(page, userData) {
         if (i < 4) {
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
+      }
+
+      // КРИТИЧЕСКИ ВАЖНО: Проверяем остановку ПЕРЕД отправкой уведомлений
+      if (checkStop && checkStop()) {
+        console.log('🛑 Получен запрос на остановку автокликера (перед отправкой уведомлений)');
+        return { success: false, hasCitas: false, stopped: true };
       }
 
       console.log('\n' + '='.repeat(60));
